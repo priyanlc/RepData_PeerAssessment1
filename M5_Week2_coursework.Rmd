@@ -1,0 +1,168 @@
+---
+title: "Reproducible research - Week 2 coursework"
+output: github_document
+---
+
+```{r setup, include=FALSE, echo=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+
+```
+
+## Loading and preprocessing the data
+
+```{r,echo=TRUE}
+temp <- tempfile()
+download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",temp)
+unzip(temp)
+unlink(temp)
+activity <- read.csv("activity.csv")
+activity_bkp<-activity
+head(activity)
+
+
+```
+
+###### Remove incomplete cases
+
+```{r, echo=TRUE}
+activity_clean <- activity[complete.cases(activity),]
+head(activity_clean)
+```
+
+###### Summary -- group steps by dates, library dplyr is used
+
+```{r, echo=TRUE}
+activity_summary_dates <- aggregate(steps~date,data=activity_clean,sum )
+
+names(activity_summary_dates)<- c("dates","total_steps")
+head(activity_summary_dates)
+```
+
+###### Histogram total steps vs day
+
+```{r, echo=TRUE}
+hist(activity_summary_dates$total_steps, xlab = "Total steps", col="green",ylab = "Days", main = "Total steps vs Days" )
+```
+
+###### Mean and median for group by dates data
+
+```{r, echo=TRUE}
+mean_steps <- mean(activity_summary_dates$total_steps)
+
+median_steps <- median(activity_summary_dates$total_steps)
+
+mean_steps
+
+median_steps
+
+```
+
+##### Calculate mean and median for data grouped by interval and get the interval which has the max mean
+
+```{r, echo=TRUE}
+activity_summary_interval<-aggregate(steps~interval,data=activity_clean,mean)
+
+names(activity_summary_interval)<- c("intervals","mean")
+
+head(arrange(activity_summary_interval, desc(mean)),1)
+```
+
+##### Draw the plot, interval vs means of intervals 
+
+```{r, echo=TRUE}
+with(activity_summary_interval, {plot(intervals, mean, type="l",col=3,main ="Interval and means of intervals")})
+ab <-abline(lm(activity_summary_interval$mean ~ activity_summary_interval$intervals))
+```
+
+##### Total rows with NA values 
+
+```{r, echo=TRUE}
+total_na<-sum(complete.cases(activity)==FALSE)
+total_na
+```
+
+##### Replace incomplete cases
+N/A replaces with mean value for steps
+
+```{r, echo=TRUE}
+activity$steps[is.na(activity$steps)] = mean(activity$steps, na.rm=TRUE)
+head(activity,10)
+```
+
+##### Total steps, group by date, after replacing missing values
+
+```{r, echo=TRUE}
+activity_summary_dates_full <-  aggregate(steps~date,data=activity,sum )
+names(activity_summary_dates_full)<-c("date","total_steps")
+```
+
+##### Histogram after completing missing values
+
+```{r, echo=TRUE}
+hist(activity_summary_dates_full$total, xlab = "Total steps", ylab = "Number of Days", main = "Total steps vs Number of days",col="blue")
+
+hist(activity_summary_dates$total_steps, xlab = "Total steps", col="green",ylab = "Days", main = "Total steps vs Days", add=T)
+
+legend("topright", c("Imputed", "Non-imputed"), col=c("blue", "green"), lwd=10)
+```
+
+
+###### Mean and median for group by dates data after imputation
+
+```{r, echo=TRUE}
+new_mean <- mean(activity_summary_dates_full$total_steps)
+
+new_median <- median(activity_summary_dates_full$total_steps)
+
+new_mean
+
+new_median
+```
+
+##### Difference between the original mean, median and the values after impulation
+
+```{r, echo=TRUE}
+diff_mean<-new_mean -mean_steps
+
+diff_mean
+
+diff_median<-new_median -median_steps
+
+diff_median
+
+total_diff <- sum(activity$steps) - sum(activity_clean$steps)
+
+total_diff
+
+```
+
+##### New Factor variable -Day
+
+```{r, echo=TRUE}
+weekdays <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+
+activity$day = as.factor(ifelse(is.element(weekdays(as.Date(activity$date)),weekdays), "Weekday", "Weekend"))
+
+table(activity$day)
+```
+
+
+
+##### Calculate mean data grouped by interval for imputed data
+
+```{r, echo=TRUE}
+steps_by_interval <- aggregate(steps ~ interval + day, activity, mean)
+
+```
+
+
+##### Plot mean vs intervals by Weekday and Weekend
+
+```{r, echo=TRUE}
+library(lattice)
+
+xyplot(steps_by_interval$steps ~ steps_by_interval$interval|steps_by_interval$day, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+
+```
+
